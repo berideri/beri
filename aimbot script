@@ -1,0 +1,192 @@
+--[[ 
+    WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+
+-- Settings
+local expandAmount = 10  -- Amount to expand the hitbox by
+local aimbotRange = 500  -- Maximum range for aimbot targeting (in studs)
+local espBoxColor = Color3.fromRGB(255, 0, 0)  -- Color for the ESP box
+local espNameColor = Color3.fromRGB(255, 255, 255)  -- Color for the name above players
+
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local character = player.Character or player.CharacterAdded:Wait()
+local camera = game.Workspace.CurrentCamera
+
+-- Function to expand hitbox for a specific character
+function ExpandHitboxForCharacter(targetCharacter)
+    local humanoidRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    -- Expand humanoid root part size
+    local currentSize = humanoidRootPart.Size
+    local newSize = Vector3.new(currentSize.X + expandAmount, currentSize.Y + expandAmount, currentSize.Z + expandAmount)
+    humanoidRootPart.Size = newSize
+
+    -- Expand other parts of the character
+    for _, part in pairs(targetCharacter:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Size = part.Size + Vector3.new(expandAmount, expandAmount, expandAmount)
+            part.CanCollide = true
+        end
+    end
+end
+
+-- Function to reset hitbox for a specific character
+function ResetHitboxForCharacter(targetCharacter)
+    local normalSize = Vector3.new(2, 5, 2)
+    local humanoidRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart then
+        humanoidRootPart.Size = normalSize
+    end
+
+    -- Reset other parts of the character
+    for _, part in pairs(targetCharacter:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Size = normalSize
+            part.CanCollide = true
+        end
+    end
+end
+
+-- Function to expand hitboxes for all players except the local player
+function ExpandHitboxesForOthers()
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            ExpandHitboxForCharacter(otherPlayer.Character)
+        end
+    end
+end
+
+-- Function to reset hitboxes for all players except the local player
+function ResetHitboxesForOthers()
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            ResetHitboxForCharacter(otherPlayer.Character)
+        end
+    end
+end
+
+-- Function to aim at the nearest target
+function Aimbot()
+    local closestPlayer = nil
+    local closestDistance = aimbotRange
+    local targetPosition = nil
+
+    -- Iterate through all players and find the closest one within range
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local targetCharacter = otherPlayer.Character
+            local humanoidRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                local distance = (camera.CFrame.Position - humanoidRootPart.Position).Magnitude
+                if distance < closestDistance then
+                    closestPlayer = otherPlayer
+                    closestDistance = distance
+                    targetPosition = humanoidRootPart.Position
+                end
+            end
+        end
+    end
+
+    -- If a target was found, aim at it
+    if closestPlayer then
+        local targetDirection = (targetPosition - camera.CFrame.Position).unit
+        local cameraRotation = CFrame.new(camera.CFrame.Position, targetPosition)
+        camera.CFrame = CFrame.new(camera.CFrame.Position, targetPosition)  -- Adjust the camera rotation to aim
+    end
+end
+
+-- ESP: Add ESP box and name above players
+function AddESP(targetCharacter)
+    -- Create ESP box (highlight)
+    local highlight = Instance.new("BillboardGui")
+    highlight.Parent = targetCharacter:FindFirstChild("Head")
+    highlight.Size = UDim2.new(0, 100, 0, 100)
+    highlight.Adornee = targetCharacter:FindFirstChild("Head")
+    highlight.AlwaysOnTop = true
+    highlight.BackgroundTransparency = 1
+    highlight.BorderSizePixel = 0
+
+    local box = Instance.new("Frame")
+    box.Parent = highlight
+    box.Size = UDim2.new(1, 0, 1, 0)
+    box.BackgroundColor3 = espBoxColor
+    box.BackgroundTransparency = 0.5
+
+    -- Create name above the player
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Parent = highlight
+    nameLabel.Size = UDim2.new(1, 0, 0.2, 0)
+    nameLabel.Position = UDim2.new(0, 0, 1, 0)
+    nameLabel.Text = targetCharacter.Name
+    nameLabel.TextColor3 = espNameColor
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextSize = 14
+end
+
+-- Remove ESP for a character
+function RemoveESP(targetCharacter)
+    local head = targetCharacter:FindFirstChild("Head")
+    if head then
+        local highlight = head:FindFirstChildOfClass("BillboardGui")
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+end
+
+-- Add ESP for all other players except the local player
+function AddESPForOthers()
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            AddESP(otherPlayer.Character)
+        end
+    end
+end
+
+-- Remove ESP for all other players except the local player
+function RemoveESPForOthers()
+    for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            RemoveESP(otherPlayer.Character)
+        end
+    end
+end
+
+-- Toggle hitbox expansion
+local hitboxesExpanded = false
+function ToggleHitboxExpansion()
+    if hitboxesExpanded then
+        ResetHitboxesForOthers()
+    else
+        ExpandHitboxesForOthers()
+    end
+    hitboxesExpanded = not hitboxesExpanded
+end
+
+-- Toggle ESP visibility
+local espEnabled = false
+function ToggleESP()
+    if espEnabled then
+        RemoveESPForOthers()
+    else
+        AddESPForOthers()
+    end
+    espEnabled = not espEnabled
+end
+
+-- Toggle aimbot activation
+local aimbotEnabled = false
+function ToggleAimbot()
+    aimbotEnabled = not aimbotEnabled
+end
+
+-- Main loop (called every frame)
+while true do
+    if aimbotEnabled then
+        Aimbot()
+    end
+
+    wait(0.1)  -- Adjust this delay to control how often the aimbot runs
+end
